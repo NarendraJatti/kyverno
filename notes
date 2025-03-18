@@ -1,0 +1,19 @@
+polciy engine for k8s
+custome polciy and rules
+
+rules/polciy
+==========
+approved repo image
+pods must have resource limits
+deny traffic without network policies
+
+admission controller
+=========
+alwayspullimages
+defaultstorageclass
+namespaceexists
+mutatingadmissionwebhook
+validatingadmission webhook
+
+
+kyverno>>mutatin admission and validating admission
