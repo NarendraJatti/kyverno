@@ -1,0 +1,20 @@
+apiVersion: kyverno.io/v1 
+kind: ClusterPolicy 
+metadata: 
+  name: deny pulibc registry  #Deny-capital D will thoruw error
+
+spec:
+  validationFailureAction: Enforce 
+  rules:
+    - name: Deny pulibc registry
+    match: 
+      any: 
+        - resources:
+            kinds:
+              - Pod
+    validate: 
+      message: "Unknow image registry"
+      pattern: 
+       spec:
+        containers: 
+          - image:"kodekloud.io/*"

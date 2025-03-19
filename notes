@@ -1,6 +1,27 @@
 polciy engine for k8s
 custome polciy and rules
 
+Kyverno and Admission Controllers
+Kyverno is a Kubernetes-native policy engine designed to enforce policies and manage configurations in a Kubernetes cluster. It operates by leveraging the admission controller mechanism to enforce its policies. Here's how it's linked to admission controllers:
+
+Kyverno as a Validating Admission Controller:
+
+Kyverno enforces security and governance policies by intercepting requests using a validating admission webhook. It checks if the object complies with the policies defined by the user (e.g., enforcing labels or requiring certain fields). If the request doesn’t meet the policy, Kyverno rejects it.
+Kyverno as a Mutating Admission Controller:
+
+Kyverno can also act as a mutating admission controller. For instance, it can modify resources on-the-fly (e.g., injecting default values or setting security configurations) by using a mutating admission webhook.
+
+Kyverno works with both types of admission webhooks to help implement policies without requiring manual intervention or custom controllers. Here's a high-level flow of how Kyverno works with admission webhooks:
+
+A request (e.g., creating a Pod) comes to the Kubernetes API server.
+The API server passes this request to Kyverno's mutating webhook, which modifies the resource if any mutation policy is defined.
+After mutation, the request is passed to Kyverno's validating webhook, which checks the resource against the validation policies.
+If the request passes both, it is allowed and the resource is created. Otherwise, it is rejected.
+
+the Admission Webhook is the feature or mechanism, and its behavior is configured through YAML files, which Kubernetes understands. The custom logic for mutation/validation is executed by an external service linked to the webhook configuration.
+
+General Case: If one or both rules fail, the Pod creation will be blocked, and the error message from the first failed rule will be returned. Since validationFailureAction: Enforce is set, the policy will prevent non-compliant Pods from running in the cluster.
+
 rules/polciy
 ==========
 approved repo image
