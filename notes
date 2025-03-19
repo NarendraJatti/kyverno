@@ -38,3 +38,24 @@ validatingadmission webhook
 
 
 kyverno>>mutatin admission and validating admission
+
+
+Creating a Pod without any labels might seem straightforward and may not immediately affect its operations.
+
+However, adding labels to Pods offers significant advantages in organizing, grouping, and managing resources. Therefore, it is always a good idea to use labels for your resources to enhance efficiency and maintainability in your Kubernetes cluster.
+
+By running a pod as root, we saw the security vulnerabilities it introduced. We can set up Kubernetes policies to enforce that pods are not created with root privileges.
+
+Not setting resource limits can lead to resource contention and potential denial-of-service (DoS) attacks. This can be managed by setting up Kubernetes policies to ensure pods have defined resource limits and requests.
+
+Neglecting to set up labels can result in difficulties organizing and managing resources. Enforcing labeling standards through Kubernetes policies ensures consistent labeling across resources.
+
+By embracing Kubernetes policies, organizations can ensure their clusters are secure, resources are optimally utilized, and operational standards are met, thereby enhancing the overall robustness of their Kubernetes environment.
+
+
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+
+kubectl get cpol disallow-root-user-pods -o yaml
+
+   kubectl get crds | grep kyverno
+
