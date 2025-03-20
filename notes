@@ -1,5 +1,185 @@
+https://www.youtube.com/watch?v=5ihkMblumD0&t=130s
+https://medium.com/@mariamfahmy66/validating-admission-policies-in-kyverno-1f4a3e972f92
+
+https://github.com/iam-veeramalla/k8s-kyverno-argocd
+
+https://github.com/kyverno/policies/tree/main/best-practices>>good
+
+kyverno with argocd
+=============
+https://medium.com/@charled.breteche/using-kyverno-policies-with-argocd-1a600c1b249
+
+ we will go deeper into enforcing best practices and compliance with Kyverno, focusing on network policies, resource quotas, and secrets management.
+  implementing advanced policies is vital for not just securing the cluster but also for ensuring that the resources are optimally used and sensitive information is properly managed and accessed.
+
+Kyverno policies are defined as Kubernetes custom resources (CRDs) called ClusterPolicy (applied cluster-wide) or Policy (applied at the namespace level).
+
+An admission controller in Kubernetes is a component that intercepts requests to the Kubernetes API server before they are persisted in etcd (the cluster's data store) and can modify or reject those requests. Admission controllers are used to enforce cluster policies, security, and resource management rules.
+
+Main Admission Controllers in Kubernetes
+Here are some of the key admission controllers commonly used in Kubernetes:
+
+NamespaceLifecycle:
+
+Ensures that resources can only be created in active namespaces.
+Prevents the creation of resources in deleted or terminating namespaces.
+LimitRanger:
+
+Enforces default resource limits and quotas for Pods, Containers, and other resources.
+ResourceQuota:
+
+Enforces quotas on resource usage, ensuring that namespaces don’t exceed allocated CPU, memory, or storage.
+PodSecurityPolicy (Deprecated in v1.21, replaced by Pod Security Admission in v1.25):
+
+Enforces security-related policies like restricting privileged containers or specifying security contexts.
+MutatingAdmissionWebhook:
+
+Invokes an external webhook to mutate incoming API requests, allowing the request to be modified (e.g., injecting sidecars or modifying resource requests).
+ValidatingAdmissionWebhook:
+
+Calls an external webhook to validate the request. If it fails validation, the request is denied.
+NodeRestriction:
+
+Restricts the nodes so that they can only modify certain resources (like their own Node or Pod objects), preventing privilege escalation.
+PodNodeSelector:
+
+Adds node selectors to Pods, restricting them to specific nodes.
+TaintNodesByCondition:
+
+Automatically adds taints to nodes based on their condition, which influences scheduling.
+DefaultStorageClass:
+
+Automatically assigns a default storage class to PersistentVolumeClaims (PVCs) that don’t specify a storage class.
+AlwaysPullImages:
+Forces Kubernetes to pull container images every time a Pod is created, regardless of whether the image is cached on the node.
+DenyEscalatingExec:
+Blocks exec, attach, and port-forward commands to Pods with elevated privileges, enhancing security.
+PodSecurityAdmission (Introduced in Kubernetes 1.25):
+Enforces the Pod Security Standards, which are predefined levels of security that apply to Pods.
+ServiceAccount:
+Automatically assigns ServiceAccounts to Pods that do not specify one.
+Priority:
+Enforces pod priority rules, allowing high-priority Pods to preempt lower-priority ones.
+How to Configure Admission Controllers
+Kubernetes admission controllers are enabled by default. To manage which admission controllers are enabled or disabled, you configure the --enable-admission-plugins and --disable-admission-plugins flags on the Kube API Server.
+
+Admission controllers play a crucial role in enforcing policies and ensuring a consistent, secure, and reliable operation of Kubernetes clusters.
+
+
+kyverno's Admission Webhook intercepts the request.
+
+Kyverno acts as a dynamic admission controller by using webhooks.
+It intercepts API requests to validate or mutate resources (like pods) based on the policies you define.
+In your case, to enforce the requirement that all pods must have a team label, you create a ClusterPolicy.
+The webhook ensures that pods missing the team label are rejected, thus enforcing policy compliance.
+
+Important(flow/sequence):
+=======================
+A user or system triggers an event by making an API request to the Kubernetes API server, such as creating a pod.
+The Kubernetes API server receives the pod creation request.
+Admission Controller Webhook (Kyverno’s Webhook):
+Before proceeding with creating the pod, the API server sends the request to registered admission webhooks (both mutating and validating webhooks).
+Kyverno is registered as one of these admission controllers via a webhook. This webhook is responsible for handling specific resources (e.g., Pods) and specific actions (e.g., creation, update, deletion).
+The admission controller webhook in Kyverno is invoked because the pod creation event matches the resource type (Pod) and action (Create) defined in Kyverno policies.
+Webhook Passes Request to Kyverno:
+Kyverno receives the intercepted pod creation request through the webhook. It examines the resource (the pod in this case) to check if there are any policies that apply to this type of resource and operation.
+Policy Evaluation (Validating or Mutating):
+Kyverno processes the intercepted request and determines which policies (rules) apply to the resource. There are two types of admission webhooks:
+
+Mutating Admission Webhook: This webhook can modify (mutate) the resource before it is persisted to the etcd database. Kyverno uses this webhook to add missing fields or labels if a mutation policy is defined.
+Validating Admission Webhook: This webhook validates the resource and ensures it complies with predefined policies. If a policy violation is detected, it can block the resource from being created.
+ API Server Receives Response:
+Once Kyverno evaluates the pod, it sends the response (either approval or denial) back to the API server.
+If the pod creation is approved, the API server proceeds to create the pod in the cluster.
+If the pod creation is denied (because it lacks the team label), the API server sends an error response back to the user or system that made the request.
+. Pod Creation Outcome:
+If Kyverno approves the request, the pod is created and scheduled in the Kubernetes cluster.
+If Kyverno rejects the request (due to the missing team label), the pod is not created, and the requestor is notified of the reason.
+Key Components in the Sequence:
+API Request: The user/system makes an API call to create a resource (e.g., a pod).
+API Server: Receives the request and forwards it to Kyverno’s admission webhook.
+Admission Webhook: Kyverno intercepts the request and checks for policies that apply to the resource type (Pod).
+Policy Evaluation: Kyverno evaluates the resource based on the defined ClusterPolicy. In your case, it checks if the pod has the team label.
+Decision: Kyverno approves or rejects the request based on policy compliance.
+API Server Action: If Kyverno approves, the resource is created. If Kyverno rejects, an error message is returned, and the resource is not created.
+
+
+How Kyverno Works:
+Kyverno operates by defining policies that are enforced at different stages of resource creation or modification. These policies are enforced through dynamic admission controllers in Kubernetes, which are responsible for intercepting requests to the API server.
+
+1. Admission Controller and Webhooks:
+Admission controllers are components in Kubernetes that intercept API requests (like creating or updating a pod) and either mutate the resource (to add missing fields) or validate the resource (to check if it adheres to specific policies).
+Kyverno registers itself with Kubernetes as a dynamic admission webhook (mutating or validating webhook) that is invoked when a resource (such as a pod) is created, updated, or deleted.
+2. Writing a ClusterPolicy:
+You create a ClusterPolicy (which applies to all namespaces) or a Policy (which is namespace-specific) in Kyverno to enforce rules. For example, to require all pods to have a team label, you would write a ClusterPolicy like this:
+
+Admission Request Interception: When a pod creation request is made, the Kubernetes API server forwards the request to Kyverno’s admission webhook.
+
+If it's a validating webhook, Kyverno checks whether the pod satisfies the policies (e.g., if the team label exists).
+If it's a mutating webhook, Kyverno can automatically add missing fields or labels based on the policy.
+
+Yes, Kyverno creates admission controllers using webhooks to enforce policies on resources in your Kubernetes cluster
+
+Kyverno operates by defining policies that are enforced at different stages of resource creation or modification. These policies are enforced through dynamic admission controllers(dynamic) in Kubernetes, which are responsible for intercepting requests to the API server.
+
+Governance of k8 cluster>kyverno
+
+writing lot of admission of controllers is not possbile/feasible
+compliance>>ex,no latest tag etc 
+===
+resrouce requests/limits,no latest tag img
+
+kubeapi server>>admission controller 
+
+
+
+aws governance,k8 governcance 
 polciy engine for k8s
 custome polciy and rules
+
+replication controller 
+
+CRDs installed by Kyverno (automatically):
+Policy: A namespaced policy resource.
+ClusterPolicy: A cluster-wide policy resource.
+Other Kyverno-related resources (like PolicyReports) are also created to handle the output of policy violations.
+
+Kyverno uses CRDs to define policies, rules, and configurations for managing Kubernetes resources.
+
+In short, both Istio and Kyverno use mutating webhooks for configuration adjustments, but Istio focuses on sidecar injection for service mesh, whereas Kyverno can apply broader policies across the Kubernetes environment, including validating and mutating resource specifications.
+
+important
+============
+Webhooks act as admission controllers to enforce policies, like ensuring that all Pods have certain labels, or modifying resources before they are stored.
+Webhook Registration: Kyverno registers two types of admission webhooks with the Kubernetes API server:
+
+MutatingWebhookConfiguration: This webhook listens to all create and update operations on resources like Pods, Deployments, Services, etc., and mutates them based on Kyverno policies.
+ValidatingWebhookConfiguration: This webhook listens to all create and update operations and validates the resources based on the defined policies.
+These webhooks make sure that every time a resource is created or updated, Kyverno checks it against the policies and mutates or validates it accordingly.
+
+The CRDs (such as Policy and ClusterPolicy) allow users to define rules for mutation and validation in Kubernetes.
+The webhooks (mutating and validating) are the mechanisms Kyverno uses to enforce these rules by intercepting resource creation and update requests.
+When you define a policy (using the ClusterPolicy or Policy CRD), it contains the rules that tell Kyverno what to do when a resource is created or updated. These rules are enforced through the webhooks:
+
+Mutating Webhook: Automatically modifies the resource based on the policy.
+Validating Webhook: Ensures the resource complies with the policy before allowing it to be created or updated.
+
+
+ Kyverno defines two main CRDs, Policy and ClusterPolicy, which are used to specify the rules for validating, mutating, or generating resources. These rules are written by users to apply across the cluster (in the case of ClusterPolicy) or within specific namespaces (Policy).
+
+
+
+
+
+Types of Kyverno Policies
+Validation Policies: These policies ensure that certain conditions are met before a resource is allowed in the cluster. For example, a validation policy might require that all images come from a trusted registry.
+
+Mutating Policies: These policies modify incoming resources to match organizational standards or fix common issues automatically. For instance, a mutating policy could automatically add a label to all incoming resources.
+
+Generation Policies: These policies create new resources based on triggers from existing resources. An example might be generating a NetworkPolicy resource for each new Namespace.
+
+
+Kyverno, a Kubernetes-native policy engine
 
 Kyverno and Admission Controllers
 Kyverno is a Kubernetes-native policy engine designed to enforce policies and manage configurations in a Kubernetes cluster. It operates by leveraging the admission controller mechanism to enforce its policies. Here's how it's linked to admission controllers:
@@ -57,5 +237,23 @@ helm install kyverno kyverno/kyverno -n kyverno --create-namespace
 
 kubectl get cpol disallow-root-user-pods -o yaml
 
+Kyverno, a Kubernetes-native policy engine
+
    kubectl get crds | grep kyverno
 
+kubectl get clusterpolicyreport
+
+important:
+==========
+You can also integrate Kyverno audit logs with logging systems like Fluentd, Elasticsearch, Loki, or Promtail to aggregate and search logs for violations.
+
+
+cross ns service communication
+====
+service-name.namespace.svc.cluster.local>fully qualified domain name (FQDN)
+If both services are in the same namespace, you can use just the service name to communicate between services. 
+http://payment-service
+
+
+If the services are in different namespaces, you need to use the fully qualified domain name (FQDN) to ensure proper communication. The FQDN includes the service name, namespace, and cluster domain, like this:
+http://payment-service.A.svc.cluster.local
